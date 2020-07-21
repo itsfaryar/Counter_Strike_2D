@@ -6,5 +6,8 @@ One player mode:
 Multiplayer mode:
   2 players in a local network.
  
- to clone this repository:
+to clone this repository:
+
+  git clone https://github.com/FaryarD/Counter_Strike_2D
   
+  git clone git@github.com:FaryarD/Counter_Strike_2D.git
