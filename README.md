@@ -9,5 +9,5 @@ Multiplayer mode:
 to clone this repository:
 
   git clone https://github.com/FaryarD/Counter_Strike_2D
-  
+    Or...
   git clone git@github.com:FaryarD/Counter_Strike_2D.git
