@@ -7,4 +7,12 @@ public class Position {
 		this.i=i;
 		this.j=j;
 	}
+	public boolean equals(Object obj) {
+		boolean out=false;
+		Position pos=(Position) obj;
+		if(this.i==pos.i && this.j==pos.j) {
+			out=true;
+		}
+		return out;
+	}
 }

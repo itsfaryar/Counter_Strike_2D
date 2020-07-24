@@ -9,8 +9,6 @@ import javax.swing.border.EmptyBorder;
 
 import game.GameEnv.Game_Mode;
 import game.Player.Directions;
-import game.Player.Modes;
-
 import javax.swing.JTextField;
 import javax.swing.JLabel;
 import javax.swing.JComboBox;
@@ -47,7 +45,7 @@ public class StartMenu extends JFrame {
 	 */
 	public StartMenu() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 321, 192);
+		setBounds(100, 100, 321, 229);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
@@ -83,12 +81,18 @@ public class StartMenu extends JFrame {
 				if(w>0&&h>0) {
 					Icons icons=new  Icons(w, h);
 					ArrayList<Player>players=new ArrayList<Player>();
-					players.add(new Player(icons, Modes.ME, Directions.RIGHT));
+					players.add(new Player(icons,Player.Types.ME, Directions.RIGHT,1));
+					players.add(new Player(icons,Player.Types.BOT, Directions.RIGHT,2));
+					players.add(new Player(icons,Player.Types.BOT, Directions.RIGHT,3));
+					players.add(new Player(icons,Player.Types.BOT, Directions.RIGHT,4));
 					GameEnv ge=new GameEnv(w, h, Game_Mode.OFFLINE, players,icons);
 				}
 			}
 		});
 		btnStartOfflineMode.setBounds(51, 43, 203, 25);
 		contentPane.add(btnStartOfflineMode);
+	
+		
 	}
+
 }

@@ -18,6 +18,7 @@ public class Square extends JButton{
 	private Player player=null;
 	private Icons icons;
 	private Materials material;
+	private boolean health_obj=false;
 	public Square(Icons icons,int w,int h) {
 		this.icons=icons;
 		Random rand = new Random();
@@ -80,15 +81,32 @@ public class Square extends JButton{
 		if(player==null ) {
 			this.player=pl;
 			this.setIcon(player.getIcon());
+			if(health_obj) {
+				health_obj=false;
+				player.takeHealthObj();
+			}
 			out=true;
 		}
 		return out;
 	}
+	public Player getPlayer() {
+		return player;
+	}
 	public void unsetPlayer() {
 		this.player=null;
-		if(icons==null);//System.out.println("shiit");
+		if(icons==null);
 		else this.setIcon(icons.icon_none);
+		if(health_obj)this.setIcon(icons.icon_heart);
 
+	}
+	public boolean isThereHealthObj() {
+		return health_obj;
+	}
+	public void putHealthObj() {
+		if(player==null) {
+			this.health_obj = true;
+			this.setIcon(icons.icon_heart);
+		}
 	}
 	
 }
