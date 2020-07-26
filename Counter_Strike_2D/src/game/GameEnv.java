@@ -43,6 +43,7 @@ public class GameEnv extends JFrame implements KeyListener {
 	private ServerSocket server_socket;
 	private Socket socket;
 	private socketRW socket_rw;
+	private StartMenu start_menu;
 	public void keyPressed(KeyEvent e) {
 		switch (e.getKeyCode()) {
 		case KeyEvent.VK_W:
@@ -81,11 +82,17 @@ public class GameEnv extends JFrame implements KeyListener {
 	 */
 
 
-	public GameEnv(int w,int h,Game_Mode gmode,ArrayList<Player>players,Icons icons){
+	public GameEnv(StartMenu start_menu,Map map,int w,int h,Game_Mode gmode,ArrayList<Player>players,Icons icons,Socket socket){
+		GameEnv self=this;
+		map.setGameEnv(this);
+		this.map=map;
+		this.start_menu=start_menu;
 		LocalTime now = LocalTime.now(ZoneId.systemDefault());
 		game_runtime=now.toSecondOfDay(); 
 		this.gmode=gmode;
 		player_in_control=players.get(0);
+		
+		
 		
 		addKeyListener(this);
 		setFocusable(true);
@@ -101,7 +108,7 @@ public class GameEnv extends JFrame implements KeyListener {
 		
 		menu_bar=new JMenuBar();
 		contentPane.add(menu_bar, BorderLayout.PAGE_START);
-		admin_options=new JMenu("Admin Options");
+		admin_options=new JMenu("Cheet codes");
 		menu_bar.add(admin_options);
 		start_game=new JButton("Start Game");
 		start_game.setFocusable(false);
@@ -109,19 +116,23 @@ public class GameEnv extends JFrame implements KeyListener {
 			public void actionPerformed(ActionEvent arg0) {
 				start_game.setEnabled(false);
 				map.setEditorMode(false);
-				for(int i=0;i<players.size();i++) {
-					map.playerFirstSpawn(players.get(i));
-					if(players.get(i).getType()==Player.Types.BOT) {
-						players.get(i).setMap(map);
-						players.get(i).start();
-					}
-					else if(players.get(i).getType()==Player.Types.PL_SERVER) {
+				if(gmode==Game_Mode.OFFLINE) {
+					for(int i=0;i<players.size();i++) {
+						map.playerFirstSpawn(players.get(i));
+						if(players.get(i).getType()==Player.Types.BOT) {
+							players.get(i).setMap(map);
+							players.get(i).start();
+							
+						}
 						
+					
 					}
-					refreshPlayerLives();
+				
 				}
+
+				refreshPlayerLives();
 				map.start();
-				//admin_options.setEnabled(false);
+				admin_options.setEnabled(false);
 			}
 		});
 		menu_bar.add(start_game);
@@ -135,12 +146,30 @@ public class GameEnv extends JFrame implements KeyListener {
 		
 		lives_lbl=new JLabel();
 		menu_bar.add(lives_lbl);
-		if(gmode==Game_Mode.OFFLINE) {
-			map=new Map(this,icons,w, h, players);
-			map_squares=map.getSquares();
-			contentPane.add(map.panel);
-		}
 	
+		map_squares=map.getSquares();
+		contentPane.add(map.panel);
+		
+		if(gmode==Game_Mode.ONLINE_CLIENT) {
+			map.setSocket(socket);
+			self.setTitle("Client");
+			map.start();
+			refreshPlayerLives();
+			//admin_options.setEnabled(false);
+			start_game.setEnabled(false);
+			start_game.setVisible(false);
+		}
+		
+		else if(gmode==Game_Mode.ONLINE_SERVER) {
+			map.setSocket(socket);
+			self.setTitle("Server");
+			refreshPlayerLives();
+			map.start();
+			start_game.setEnabled(false);
+			start_game.setVisible(false);
+			//admin_options.setEnabled(false);
+		}
+
 		pack();
 		
 		this.addWindowListener(new java.awt.event.WindowAdapter() {
@@ -155,13 +184,14 @@ public class GameEnv extends JFrame implements KeyListener {
 		    		   
 		    	   }
 		       }
+		       start_menu.setVisible(true);
 		    }
 		});
 	}
 
 	public void refreshPlayerLives() {
 		if(player_in_control!=null) {
-			lives_lbl.setText("Lives: "+player_in_control.getLives());
+			lives_lbl.setText("  Player Number: "+player_in_control.getNum()+"  "+"Lives: "+player_in_control.getLives());
 		}
 	}
 	public void gameOver(Player winner) {

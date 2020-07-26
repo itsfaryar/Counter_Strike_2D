@@ -2,11 +2,10 @@ package game;
 
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.util.Random;
+
 
 import javax.swing.ImageIcon;
 
-import game.Player.Directions;
 
 public class Player extends Thread{
 	public enum status{ALIVE,DEAD}
@@ -116,6 +115,11 @@ public class Player extends Thread{
 		LocalTime now = LocalTime.now(ZoneId.systemDefault());
 		timeOfDeath=now.toSecondOfDay(); 
 		
+	}
+	public void revive() {
+		lives=3;
+		state=status.ALIVE;
+		timeOfDeath=-1;
 	}
 	public void hitByBullet() {
 		this.lives--;

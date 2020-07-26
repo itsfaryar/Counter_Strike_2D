@@ -3,6 +3,10 @@ package game;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -10,7 +14,9 @@ import java.util.Random;
 
 import javax.swing.JPanel;
 
+import game.GameEnv.Game_Mode;
 import game.Player.Directions;
+import game.Player.Types;
 import game.Square.Materials;
 
 public class Map extends Thread implements ActionListener{
@@ -27,10 +33,12 @@ public class Map extends Thread implements ActionListener{
 	private GameEnv ge;
 	private boolean runningTread=true;
 	private int startTime_for_heart=0;
-	public Map(GameEnv ge,Icons icons,int w,int h,ArrayList<Player>players) {
+	private Socket socket;
+	public Map(Icons icons,int w,int h,ArrayList<Player>players) {
+		
 		LocalTime now = LocalTime.now(ZoneId.systemDefault());
 		startTime_for_heart=now.toSecondOfDay(); 
-		this.ge=ge;
+	
 		this.players=players;
 		panel=new JPanel();
 		this.w=w;
@@ -41,42 +49,108 @@ public class Map extends Thread implements ActionListener{
 		initBoard();
 		
 	}
+	public Socket getSocket() {
+		return socket;
+	}
+	public void setSocket(Socket socket) {
+		this.socket = socket;
+		recData rd=new recData(this);
+		rd.start();
+		
+		sendPlPos sd=new sendPlPos(this);
+		sd.start();
+	}
+	public void setGameEnv(GameEnv ge) {
+		this.ge=ge;
+	}
 	public void run() {
 		Player lastStandng=null;
 		int alive_counter=0;
 		while(runningTread) {
-			LocalTime now = LocalTime.now(ZoneId.systemDefault());
-			int t=now.toSecondOfDay(); 
-			if(t-startTime_for_heart>=20) {
-				getSquareAt(getFreePos()).putHealthObj();
-				startTime_for_heart=t;
+			if(ge.getGameMode()==Game_Mode.OFFLINE) {
+				LocalTime now = LocalTime.now(ZoneId.systemDefault());
+				int t=now.toSecondOfDay(); 
+				if(t-startTime_for_heart>=20) {
+					Position pos=getFreePos();
+					getSquareAt(pos).putHealthObj();
+					startTime_for_heart=t;
+					
+				}
+				ge.refreshPlayerLives();
+				removeAllPlayers();
+				lastStandng=null;
+				alive_counter=0;
+				for(int i=0;i<players.size();i++) {
+					
+					Position pos=players.get(i).getPos();
+					
+					if(pos!=null) {
+						if(players.get(i).is_alive()) {
+							alive_counter++;
+							lastStandng=players.get(i);
+							map_squares[pos.i][pos.j].setPlayer(players.get(i));
+							//map_squares[pos.i][pos.j].setText(players.get(i).getLives()+"");
+						}
+					}
+					
+				}
+				if(alive_counter<=1) {
+					ge.gameOver(lastStandng);
+					break;
+				}
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+				}
 			}
-			ge.refreshPlayerLives();
-			removeAllPlayers();
-			lastStandng=null;
-			alive_counter=0;
-			for(int i=0;i<players.size();i++) {
-				
-				Position pos=players.get(i).getPos();
-				
-				if(pos!=null) {
-					if(players.get(i).is_alive()) {
-						alive_counter++;
-						lastStandng=players.get(i);
-						map_squares[pos.i][pos.j].setPlayer(players.get(i));
-						//map_squares[pos.i][pos.j].setText(players.get(i).getLives()+"");
+			else {
+				if(ge.getGameMode()==Game_Mode.ONLINE_SERVER) {
+					LocalTime now = LocalTime.now(ZoneId.systemDefault());
+					int t=now.toSecondOfDay(); 
+					if(t-startTime_for_heart>=20) {
+						Position pos=getFreePos();
+						sendData sd=new sendData(this, "HP ; "+pos.i+" ; "+pos.j);
+						sd.start();
+						getSquareAt(pos).putHealthObj();
+						startTime_for_heart=t;
 					}
 				}
+				ge.refreshPlayerLives();
+				removeAllPlayers();
+				lastStandng=null;
+				alive_counter=0;
+				for(int i=0;i<players.size();i++) {
+					
+					Position pos=players.get(i).getPos();
+					
+					if(pos!=null) {
+						if(players.get(i).is_alive()) {
+							alive_counter++;
+							lastStandng=players.get(i);
+							map_squares[pos.i][pos.j].setPlayer(players.get(i));
+							//map_squares[pos.i][pos.j].setText(players.get(i).getLives()+"");
+						}
+						else {
+							LocalTime now = LocalTime.now(ZoneId.systemDefault());
+							int t=now.toSecondOfDay(); 
+							if(t-players.get(i).getTimeOfDeath()>=5) {
+								Player pl=players.get(i);
+								pl.revive();
+								playerFirstSpawn(players.get(i));
+								sendData sd=new sendData(this, "REVIVE ; "+pl.getNum());
+								sd.start();
+							}
+						}
+					}
+					
+				}
 				
+				try {
+					Thread.sleep(1);
+				} catch (InterruptedException e) {
+				}
 			}
-			if(alive_counter<=1) {
-				ge.gameOver(lastStandng);
-				break;
-			}
-			try {
-				Thread.sleep(1);
-			} catch (InterruptedException e) {
-			}
+			
 		}
 	}
 	
@@ -126,7 +200,6 @@ public class Map extends Thread implements ActionListener{
 	public void playerFirstSpawn(Player pl) {
 		Random rnd=new Random();
 		int i,j;
-		boolean flag=false;
 		while(true) {
 			i=rnd.nextInt(h)+1;
 			j=rnd.nextInt(w)+1;
@@ -141,7 +214,7 @@ public class Map extends Thread implements ActionListener{
 	public Position getFreePos() {
 		Random rnd=new Random();
 		int i,j;
-		boolean flag=false;
+
 		while(true) {
 			i=rnd.nextInt(h)+1;
 			j=rnd.nextInt(w)+1;
@@ -180,12 +253,6 @@ public class Map extends Thread implements ActionListener{
 		pl.setDirection(dir);
 		Position pos=pl.getPosAtDir(dir);
 		if(checkPosTo(pos)) {
-			//Square sqr=getSquareAt(pos);
-			
-			//Position old_pos=pl.getPos();
-			//if(old_pos!=null)getSquareAt(old_pos).unsetPlayer();
-				
-			//sqr.setPlayer(pl);
 			pl.setPos(pos);
 			out=true;
 				
@@ -212,6 +279,10 @@ public class Map extends Thread implements ActionListener{
 					out=true;
 					pl_target.hitByBullet();
 					ge.refreshPlayerLives();
+					if(pl_target.getType()==Types.PL_CLIENT||pl_target.getType()==Types.PL_SERVER) {
+						sendData sd=new sendData(this,"GUNSHOT ; ");
+						sd.start();
+					}
 				}
 			}
 			else if(dir==Directions.DOWN) {
@@ -227,6 +298,10 @@ public class Map extends Thread implements ActionListener{
 					out=true;
 					pl_target.hitByBullet();
 					ge.refreshPlayerLives();
+					if(pl_target.getType()==Types.PL_CLIENT||pl_target.getType()==Types.PL_SERVER) {
+						sendData sd=new sendData(this,"GUNSHOT ; ");
+						sd.start();
+					}
 				}
 			}
 			else if(dir==Directions.RIGHT) {
@@ -242,6 +317,10 @@ public class Map extends Thread implements ActionListener{
 					out=true;
 					pl_target.hitByBullet();
 					ge.refreshPlayerLives();
+					if(pl_target.getType()==Types.PL_CLIENT||pl_target.getType()==Types.PL_CLIENT) {
+						sendData sd=new sendData(this,"GUNSHOT ; ");
+						sd.start();
+					}
 				}
 			}
 			else if(dir==Directions.LEFT) {
@@ -257,6 +336,10 @@ public class Map extends Thread implements ActionListener{
 					out=true;
 					pl_target.hitByBullet();
 					ge.refreshPlayerLives();
+					if(pl_target.getType()==Types.PL_CLIENT||pl_target.getType()==Types.PL_SERVER) {
+						sendData sd=new sendData(this,"GUNSHOT ; ");
+						sd.start();
+					}
 				}
 			}
 		}
@@ -280,6 +363,7 @@ public class Map extends Thread implements ActionListener{
 				break;
 			default:
 				d=Directions.LEFT;
+				break;
 			}
 			
 			done=moveTo(pl, d);
@@ -290,6 +374,126 @@ public class Map extends Thread implements ActionListener{
             for (int j = 0; j < map_squares[i].length; j++) {
             	map_squares[i][j].unsetPlayer();
             }
+		}
+	}
+	private static class sendPlPos extends Thread {
+	
+		private DataOutputStream out;
+	
+		private Map map;
+
+	public sendPlPos(Map map) {
+		this.map=map;
+		
+	}
+
+	public void run() {
+		boolean running=true;
+		
+		while(running) {
+			
+			try {
+				out=new DataOutputStream(map.socket.getOutputStream());
+				if(map.socket!=null) {
+					if(map.socket.isConnected()) {
+						
+						out.writeUTF("PL_S ; "+map.players.get(0).getPos().i+" ; "+map.players.get(0).getPos().j+" ; "+map.players.get(0).getDirection());
+						
+					}
+				}
+			} catch (IOException e) {}
+			
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+			}
+		}
+		}
+	
+	}
+
+	private static class sendData extends Thread {
+
+		private DataOutputStream out;
+		private String data;
+		private Map map;
+
+	public sendData(Map map,String data) {
+		this.map=map;
+		this.data=data;
+	}
+
+	public void run() {
+		try {
+			out=new DataOutputStream(map.socket.getOutputStream());
+			if(map.socket!=null) {
+				if(map.socket.isConnected()) {
+					out.writeUTF(data);
+					System.out.println(data);
+				}
+			}
+		} catch (IOException e) {}
+	
+	}
+}
+	private static class recData extends Thread {
+
+		private Map map;
+		private DataInputStream inp;
+		
+
+		// set socket
+		public recData(Map map) {
+			this.map=map;
+			try {
+				if(map.socket.isConnected()) {
+					inp = new DataInputStream(map.socket.getInputStream());
+				}
+			} catch (IOException e) {
+			}
+			
+		}
+	
+		public void run() {
+			while(true) {
+				try {
+	
+					String str=inp.readUTF();
+					String[] data=str.split(" ; ");
+					if(data[0].equals("HP")) {
+					int i=Integer.parseInt(data[1]);
+					int j=Integer.parseInt(data[2]);
+					Square sqr=map.getSquareAt(new Position(i,j));
+					sqr.putHealthObj();
+						}
+					else if(data[0].equals("PL_S")) {
+						int i=Integer.parseInt(data[1]);
+						int j=Integer.parseInt(data[2]);
+						Directions d=null;
+						if(data[3].equals("UP"))d=Directions.UP;
+						else if(data[3].equals("DOWN"))d=Directions.DOWN;
+						else if(data[3].equals("RIGHT"))d=Directions.RIGHT;
+						else if(data[3].equals("LEFT"))d=Directions.LEFT;
+						map.players.get(1).setPos(new Position(i, j));
+						map.players.get(1).setDirection(d);
+					}
+					else if(data[0].equals("GUNSHOT")) {
+						map.players.get(0).hitByBullet();
+					}
+					else if(data[0].equals("REVIVE")) {
+						int num=Integer.parseInt(data[1]);
+						for(int i=0;i<map.players.size();i++) {
+							if(map.players.get(i).getNum()==num) {
+								map.players.get(i).revive();
+								break;
+							}
+						}
+					}
+				} catch (IOException e) {}
+				
+			}
+			
+	
 		}
 	}
 }
