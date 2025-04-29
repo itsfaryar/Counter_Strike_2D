@@ -17,18 +17,18 @@ mkdir bin
 
 ## Compile all Java files and save the .class files in the "compiled_files" folder
 
-javac -d src/bin src/game/\*.java
+javac -d bin src/game/\*.java
 
 ## Run the main file (StartMenu)
 
-java -cp src/bin/ game.StartMenu
+java -cp bin/ game.StartMenu
 
 ## All the lines
 
 ```
-mkdir src/bin
-javac -d src/bin src/game/*.java
-java -cp src/bin/ game.StartMenu
+mkdir bin
+javac -d bin src/game/*.java
+java -cp bin/ game.StartMenu
 ```
 
 # Offline and Online Game Design
