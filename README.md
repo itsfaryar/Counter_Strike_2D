@@ -15,7 +15,7 @@ Go to the root directory of the project (Inside the Counter_Strike_2D folder in 
 
 mkdir bin
 
-## Compile all Java files and save the .class files in the "compiled_files" folder
+## Compile all Java files and save the .class files in the bin folder
 
 javac -d bin src/game/\*.java
 
